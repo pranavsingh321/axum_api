@@ -8,8 +8,8 @@ pub enum AppError {
     MissingCredential,
     TokenCreation,
     InternalServerError,
-    UserDoesNotExist,
-    UserAlreadyExits,
+    UserDoesNotExists,
+    UserAlreadyExists,
 }
 
 impl IntoResponse for AppError {
@@ -23,8 +23,8 @@ impl IntoResponse for AppError {
             Self::MissingCredential => (StatusCode::BAD_REQUEST, "missing credential"),
             Self::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "failed to create token"),
             Self::WrongCredential => (StatusCode::UNAUTHORIZED, "wrong credentials"),
-            Self::UserDoesNotExist => (StatusCode::UNAUTHORIZED, "User does not exist"),
-            Self::UserAlreadyExits => (StatusCode::BAD_REQUEST, "User already exists"),
+            Self::UserDoesNotExists => (StatusCode::UNAUTHORIZED, "User does not exist"),
+            Self::UserAlreadyExists => (StatusCode::BAD_REQUEST, "User already exists"),
         };
         (status, Json(json!({ "error": err_msg }))).into_response()
     }

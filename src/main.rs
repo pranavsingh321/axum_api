@@ -1,7 +1,3 @@
-mod models;
-mod handler;
-mod error;
-
 use axum::{
     extract::Extension,
     routing::{get, post},
@@ -10,7 +6,19 @@ use axum::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, fmt::layer};
 use tower_http::cors::{Any, CorsLayer};
 use sqlx::postgres::PgPoolOptions;
+use once_cell::sync::Lazy;
 
+mod models;
+mod handler;
+mod error;
+mod utils;
+
+
+// secret key for JWT token
+static KEYS: Lazy<models::auth::Keys> = Lazy::new(|| {
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "Your secret here".to_owned());
+    models::auth::Keys::new(secret.as_bytes())
+});
 
 #[tokio::main]
 async fn main() {
