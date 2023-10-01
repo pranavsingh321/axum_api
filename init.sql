@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS cities (
+	id SERIAL PRIMARY KEY,
+	name TEXT NOT NULL,
+	lat NUMERIC NOT NULL,
+	long NUMERIC NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS cities_name_idx ON cities (name);
+
+
+CREATE TABLE users (
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL
+);

@@ -7,19 +7,19 @@ use crate::{
     error::AppError,
     models::{self, auth::Claims},
     utils::get_timestamp_from_hours_now,
-    KEYS
+    KEYS,
 };
 
 pub async fn register(
     Json(credentials): Json<models::auth::User>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<Json<Value>, AppError> {
-    //Check for empty email or password
+    // check if email or password is a blank string
     if credentials.email.is_empty() || credentials.password.is_empty() {
         return Err(AppError::MissingCredential);
     }
 
-    // If user exists
+    // get the user for the email from database
     let user = sqlx::query_as::<_, models::auth::User>(
         "SELECT email, password FROM users where email = $1",
     )
@@ -32,34 +32,34 @@ pub async fn register(
     })?;
 
     if let Some(_) = user {
+        //if a user with email already exits send error
         return Err(AppError::UserAlreadyExists);
     }
 
-    let result = sqlx::query("INSERT INTO users (email, password) where values ($1, $2)")
+    let result = sqlx::query("INSERT INTO users (email, password) values ($1, $2)")
         .bind(&credentials.email)
-        .bind(&credentials.password)
+        .bind(credentials.password)
         .execute(&pool)
         .await
         .map_err(|_| AppError::InternalServerError)?;
-
     if result.rows_affected() < 1 {
         Err(AppError::InternalServerError)
     } else {
-        Ok(Json(json!({"msg": "registered successfully"})))
+        Ok(Json(json!({ "msg": "registered successfully" })))
     }
 }
+
 
 pub async fn login(
     Json(credentials): Json<models::auth::User>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<Json<Value>, AppError> {
-
-    //Check for empty email or password
+    // check if email or password is a blank string
     if credentials.email.is_empty() || credentials.password.is_empty() {
         return Err(AppError::MissingCredential);
     }
 
-    // If user exists
+    // get the user for the email from database
     let user = sqlx::query_as::<_, models::auth::User>(
         "SELECT email, password FROM users where email = $1",
     )
@@ -72,18 +72,25 @@ pub async fn login(
     })?;
 
     if let Some(user) = user {
-        if user.password != credentials.password{
+        //if user exits then:
+
+        // if password is encrypted than decode it first before comparing
+        if user.password != credentials.password {
+            // password is incorrect
             Err(AppError::WrongCredential)
         } else {
             let claims = Claims {
                 email: credentials.email.to_owned(),
-                exp: get_timestamp_from_hours_now()
+                exp: get_timestamp_from_hours_now(),
             };
             let token = encode(&Header::default(), &claims, &KEYS.encoding)
                 .map_err(|_| AppError::TokenCreation)?;
-            Ok(Json(json!({"access_token": token, "type": "Bearer"})))
+            // return bearer token
+            Ok(Json(json!({ "access_token": token, "type": "Bearer" })))
         }
     } else {
+        // if the user does not exit
         Err(AppError::UserDoesNotExists)
     }
 }
+

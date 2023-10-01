@@ -1,18 +1,18 @@
 use axum::{
     extract::Extension,
     routing::{get, post},
-    Router
+    Router,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, fmt::layer};
-use tower_http::cors::{Any, CorsLayer};
-use sqlx::postgres::PgPoolOptions;
 use once_cell::sync::Lazy;
+use sqlx::postgres::PgPoolOptions;
+use tower_http::cors::{Any, CorsLayer};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod models;
+// import module
 mod handler;
 mod error;
+mod models;
 mod utils;
-
 
 // secret key for JWT token
 static KEYS: Lazy<models::auth::Keys> = Lazy::new(|| {
@@ -22,35 +22,34 @@ static KEYS: Lazy<models::auth::Keys> = Lazy::new(|| {
 
 #[tokio::main]
 async fn main() {
-    //initialize logging
+    let durl = std::env::var("DATABASE_URL").expect("set DATABASE_URL env variable");
+    // initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-                std::env::var("RUST_LOG").unwrap_or_else(|_| "axum_api=debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "axum_api=debug".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    //database setup
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("set DATABASE_URL");
+    let cors = CorsLayer::new().allow_origin(Any);
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&database_url)
+        .connect(&durl)
         .await
         .expect("unable to connect to database");
 
-    let cors = CorsLayer::new().allow_origin(Any);
-
     let app = Router::new()
-        .route("/", get(|| async {"hello world"}))
+        .route("/", get(handler::info::route_info))
+        .route("/login", post(handler::auth::login))
         .route("/register", post(handler::auth::register))
+        //only loggedin user can access this route
+        .route("/user_profile", get(handler::user::user_profile))
         .layer(cors)
         .layer(Extension(pool));
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::debug!("listening on {}", addr);
-
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
